@@ -8,26 +8,34 @@ from database.db import get_db
 import os
 from dotenv import load_dotenv
 
+# Load env
 load_dotenv()
 
+# Config
 SECRET_KEY = os.getenv("SECRET_KEY", "healthcare-secret-key-2024")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
+# Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# OAuth
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
 
+# 🔐 Hash password
 def hash_password(password: str):
     if len(password) > 72:
         password = password[:72]
     return pwd_context.hash(password)
 
 
+# 🔐 Verify password
 def verify_password(plain_password: str, hashed_password: str):
     return pwd_context.verify(plain_password, hashed_password)
 
 
+# 🔑 Create JWT token
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -35,12 +43,25 @@ def create_access_token(data: dict):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+# 👤 Get current user
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
+
+        if user_id is None:
+            raise credentials_exception
+
+    except JWTError:
+        raise credentials_exception
+
+    return user_id
