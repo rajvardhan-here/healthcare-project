@@ -6,7 +6,11 @@ from database import models
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Healthcare API")
+app = FastAPI(
+    title="Healthcare API",
+    description="Digital Healthcare System - Like Practo",
+    version="1.0.0"
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,4 +28,8 @@ app.include_router(medical_records.router)
 
 @app.get("/")
 def root():
-    return {"message": "Healthcare API is running"}
+    return {
+        "message": "Healthcare API is running",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }

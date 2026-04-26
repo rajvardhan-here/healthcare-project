@@ -1,124 +1,74 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm
-
+from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import User, Patient, Doctor
-from schemas.schemas import UserResponse, Token
 from utils.auth import hash_password, verify_password, create_access_token
+from pydantic import BaseModel, EmailStr
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
+class RegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str  # patient, doctor, admin
 
-# 🔹 REGISTER
-@router.post("/register", response_model=UserResponse)
-def register(
-    name: str,
-    email: str,
-    password: str,
-    role: str,
-    age: int = None,
-    gender: str = None,
-    blood_group: str = None,
-    phone: str = None,
-    specialization: str = None,
-    experience: int = None,
-    consultation_fee: float = None,
-    available_days: str = None,
-    db: Session = Depends(get_db)
-):
-    # Check existing user
-    db_user = db.query(User).filter(User.email == email).first()
-    if db_user:
+@router.post("/register")
+def register(data: RegisterRequest, db: Session = Depends(get_db)):
+    # Email already exists check
+    existing = db.query(User).filter(User.email == data.email).first()
+    if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Create user
-    hashed_pw = hash_password(password)
-    new_user = User(
-        name=name,
-        email=email,
-        password=hashed_pw,
-        role=role
-    )
+    # Role validation
+    if data.role not in ["patient", "doctor", "admin"]:
+        raise HTTPException(status_code=400, detail="Role must be: patient, doctor, or admin")
 
-    db.add(new_user)
+    # Password length check
+    if len(data.password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+
+    hashed = hash_password(data.password)
+    user = User(name=data.name, email=data.email, password=hashed, role=data.role)
+    db.add(user)
     db.commit()
-    db.refresh(new_user)
+    db.refresh(user)
 
-    # Create Patient profile
-    if role == "patient":
-        new_patient = Patient(
-            user_id=new_user.id,
-            age=age,
-            gender=gender,
-            blood_group=blood_group,
-            phone=phone
-        )
-        db.add(new_patient)
+    # Auto create profile based on role
+    if data.role == "patient":
+        patient = Patient(user_id=user.id)
+        db.add(patient)
         db.commit()
 
-    # Create Doctor profile
-    elif role == "doctor":
-        new_doctor = Doctor(
-            user_id=new_user.id,
-            specialization=specialization,
-            experience=experience,
-            consultation_fee=consultation_fee,
-            available_days=available_days
-        )
-        db.add(new_doctor)
+    elif data.role == "doctor":
+        doctor = Doctor(user_id=user.id)
+        db.add(doctor)
         db.commit()
-
-    return new_user
-
-
-# 🔹 LOGIN (FIXED FOR SWAGGER OAuth)
-@router.post("/login", response_model=Token)
-def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
-    db: Session = Depends(get_db)
-):
-    user = db.query(User).filter(User.email == form_data.username).first()
-
-    if not user or not verify_password(form_data.password, user.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
-        )
-
-    access_token = create_access_token(
-        data={"sub": user.email, "role": user.role}
-    )
 
     return {
-        "access_token": access_token,
-        "token_type": "bearer"
+        "message": "User registered successfully",
+        "user_id": user.id,
+        "role": user.role
     }
-# 🔹 ADD THIS AT THE END (do not change existing code)
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from database.db import get_db
-from database.models import User
-from jose import JWTError, jwt
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+@router.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == form_data.username).first()
 
-def get_current_user(
-    token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
-):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+    if not user:
+        raise HTTPException(status_code=401, detail="Email not found")
 
-    user = db.query(User).filter(User.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
+    if not verify_password(form_data.password, user.password):
+        raise HTTPException(status_code=401, detail="Incorrect password")
 
-    return user
+    token = create_access_token({"sub": str(user.id), "role": user.role})
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role,
+        "name": user.name,
+        "user_id": user.id
+    }

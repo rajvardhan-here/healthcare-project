@@ -2,130 +2,121 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import Appointment, Patient, Doctor, User
-from datetime import datetime
 from utils.auth import get_current_user
+from datetime import datetime
 
 router = APIRouter(prefix="/appointments", tags=["Appointments"])
 
-# Book appointment
+
 @router.post("/book")
 def book_appointment(
-    patient_id: int,
     doctor_id: int,
     appointment_datetime: str,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    appointment_dt = datetime.fromisoformat(appointment_datetime)
-    
-    new_appointment = Appointment(
-        patient_id=patient_id,
+    if current_user.role != "patient":
+        raise HTTPException(status_code=403, detail="Only patients can book appointments")
+
+    patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail="Patient profile not found")
+
+    doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+    if not doctor:
+        raise HTTPException(status_code=404, detail="Doctor not found")
+
+    # Parse datetime
+    try:
+        dt = datetime.fromisoformat(appointment_datetime)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid datetime format. Use: 2024-12-25T10:30:00")
+
+    # Check if slot already booked
+    existing = db.query(Appointment).filter(
+        Appointment.doctor_id == doctor_id,
+        Appointment.appointment_datetime == dt,
+        Appointment.status == "booked"
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="This time slot is already booked")
+
+    appointment = Appointment(
+        patient_id=patient.id,
         doctor_id=doctor_id,
-        appointment_datetime=appointment_dt,
+        appointment_datetime=dt,
         status="booked"
     )
-    
-    db.add(new_appointment)
+    db.add(appointment)
     db.commit()
-    db.refresh(new_appointment)
-    
+    db.refresh(appointment)
+
     return {
         "message": "Appointment booked successfully",
-        "appointment_id": new_appointment.id
+        "appointment_id": appointment.id,
+        "doctor_id": doctor_id,
+        "datetime": dt,
+        "status": "booked"
     }
 
-# Get my appointments (role-based)
+
 @router.get("/my-appointments")
 def get_my_appointments(
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    user_role = current_user["role"]
-    user_id = current_user["id"]
-    
-    if user_role == "patient":
-        patient = db.query(Patient).filter(Patient.user_id == user_id).first()
+    if current_user.role == "patient":
+        patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
         if not patient:
             raise HTTPException(status_code=404, detail="Patient profile not found")
-        
-        appointments = db.query(
-            Appointment, Doctor, User
-        ).join(
-            Doctor, Appointment.doctor_id == Doctor.id
-        ).join(
-            User, Doctor.user_id == User.id
-        ).filter(
-            Appointment.patient_id == patient.id
-        ).all()
-        
-        result = []
-        for apt, doctor, user in appointments:
-            result.append({
-                "appointment_id": apt.id,
-                "doctor_name": user.name,
-                "specialization": doctor.specialization,
-                "appointment_datetime": apt.appointment_datetime.isoformat(),
-                "status": apt.status
-            })
-        
-        return result
-    
-    elif user_role == "doctor":
-        doctor = db.query(Doctor).filter(Doctor.user_id == user_id).first()
+        appointments = db.query(Appointment).filter(Appointment.patient_id == patient.id).all()
+
+    elif current_user.role == "doctor":
+        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
         if not doctor:
             raise HTTPException(status_code=404, detail="Doctor profile not found")
-        
-        appointments = db.query(
-            Appointment, Patient, User
-        ).join(
-            Patient, Appointment.patient_id == Patient.id
-        ).join(
-            User, Patient.user_id == User.id
-        ).filter(
-            Appointment.doctor_id == doctor.id
-        ).all()
-        
-        result = []
-        for apt, patient, user in appointments:
-            result.append({
-                "appointment_id": apt.id,
-                "patient_name": user.name,
-                "patient_age": patient.age,
-                "patient_phone": patient.phone,
-                "appointment_datetime": apt.appointment_datetime.isoformat(),
-                "status": apt.status
-            })
-        
-        return result
+        appointments = db.query(Appointment).filter(Appointment.doctor_id == doctor.id).all()
 
-# Update appointment status
+    else:
+        raise HTTPException(status_code=403, detail="Admins use admin panel")
+
+    result = []
+    for a in appointments:
+        result.append({
+            "id": a.id,
+            "patient_id": a.patient_id,
+            "doctor_id": a.doctor_id,
+            "datetime": a.appointment_datetime,
+            "status": a.status
+        })
+    return result
+
+
 @router.patch("/{appointment_id}/status")
 def update_appointment_status(
     appointment_id: int,
-    new_status: str,
-    current_user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    status: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    valid_statuses = ["booked", "completed", "cancelled"]
-    if new_status not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
-    
+    if status not in ["booked", "completed", "cancelled"]:
+        raise HTTPException(status_code=400, detail="Status must be: booked, completed, or cancelled")
+
     appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
-    
-    user_role = current_user["role"]
-    user_id = current_user["id"]
-    
-    if user_role == "patient":
-        patient = db.query(Patient).filter(Patient.user_id == user_id).first()
+
+    # Authorization check
+    if current_user.role == "patient":
+        patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
         if appointment.patient_id != patient.id:
-            raise HTTPException(status_code=403, detail="Not authorized")
-    elif user_role == "doctor":
-        doctor = db.query(Doctor).filter(Doctor.user_id == user_id).first()
+            raise HTTPException(status_code=403, detail="Not your appointment")
+
+    elif current_user.role == "doctor":
+        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
         if appointment.doctor_id != doctor.id:
-            raise HTTPException(status_code=403, detail="Not authorized")
-    
-    appointment.status = new_status
+            raise HTTPException(status_code=403, detail="Not your appointment")
+
+    appointment.status = status
     db.commit()
-    
-    return {"message": f"Appointment status updated to {new_status}"}
+    return {"message": f"Appointment status updated to {status}"}
