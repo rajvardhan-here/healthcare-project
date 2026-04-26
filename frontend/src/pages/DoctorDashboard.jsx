@@ -51,7 +51,6 @@ export default function DoctorDashboard() {
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
-      {/* Header */}
       <div className="bg-gradient-to-r from-slate-800 via-teal-800 to-cyan-800 rounded-3xl p-8 mb-8 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
         <div className="relative z-10">
@@ -61,7 +60,6 @@ export default function DoctorDashboard() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {stats.map((s, i) => (
           <div key={i} className="bg-white rounded-2xl p-5 shadow-sm card-hover border border-gray-100">
@@ -80,19 +78,15 @@ export default function DoctorDashboard() {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="flex gap-2 mb-6 bg-white p-1.5 rounded-2xl shadow-sm w-fit border border-gray-100">
         {[{ key: 'upcoming', label: '📅 Upcoming' }, { key: 'completed', label: '✅ Completed' }].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 ${
-              tab === t.key ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md' : 'text-gray-500 hover:text-teal-600'
-            }`}>
+            className={`px-6 py-2.5 rounded-xl font-semibold transition-all duration-300 ${tab === t.key ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-md' : 'text-gray-500 hover:text-teal-600'}`}>
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* Appointments */}
       <div className="space-y-4">
         {filtered.length === 0 ? (
           <div className="bg-white rounded-2xl p-16 text-center border border-gray-100">
@@ -103,9 +97,7 @@ export default function DoctorDashboard() {
           <div key={apt.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden card-hover">
             <div className="p-6 flex justify-between items-center">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-xl flex items-center justify-center text-xl shadow-md">
-                  🧑
-                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-xl flex items-center justify-center text-xl shadow-md">🧑</div>
                 <div>
                   <p className="font-bold text-gray-800">Patient #{apt.patient_id}</p>
                   <p className="text-gray-500 text-sm">{new Date(apt.datetime).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
@@ -124,7 +116,6 @@ export default function DoctorDashboard() {
               </div>
             </div>
 
-            {/* Add Record Form */}
             {selectedApt?.id === apt.id && (
               <div className="border-t border-gray-100 p-6 bg-gray-50">
                 <h3 className="font-bold text-gray-700 mb-4">📋 Add Medical Record</h3>

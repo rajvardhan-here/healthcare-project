@@ -20,26 +20,22 @@ def book_appointment(
 
     patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
     if not patient:
-        raise HTTPException(status_code=404, detail="Patient profile not found")
+        patient = Patient(user_id=current_user.id, age=None, gender=None, blood_group=None, phone=None)
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
 
     doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
     if not doctor:
         raise HTTPException(status_code=404, detail="Doctor not found")
 
-    # Parse datetime
     try:
-        dt = datetime.fromisoformat(appointment_datetime)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid datetime format. Use: 2024-12-25T10:30:00")
-
-    # Check if slot already booked
-    existing = db.query(Appointment).filter(
-        Appointment.doctor_id == doctor_id,
-        Appointment.appointment_datetime == dt,
-        Appointment.status == "booked"
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="This time slot is already booked")
+        if "T" in appointment_datetime:
+            dt = datetime.fromisoformat(appointment_datetime.replace("Z", ""))
+        else:
+            dt = datetime.strptime(appointment_datetime, "%Y-%m-%d %H:%M")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid datetime format")
 
     appointment = Appointment(
         patient_id=patient.id,
@@ -68,17 +64,15 @@ def get_my_appointments(
     if current_user.role == "patient":
         patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
         if not patient:
-            raise HTTPException(status_code=404, detail="Patient profile not found")
+            return []
         appointments = db.query(Appointment).filter(Appointment.patient_id == patient.id).all()
-
     elif current_user.role == "doctor":
         doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
         if not doctor:
-            raise HTTPException(status_code=404, detail="Doctor profile not found")
+            return []
         appointments = db.query(Appointment).filter(Appointment.doctor_id == doctor.id).all()
-
     else:
-        raise HTTPException(status_code=403, detail="Admins use admin panel")
+        return []
 
     result = []
     for a in appointments:
@@ -100,23 +94,12 @@ def update_appointment_status(
     current_user: User = Depends(get_current_user)
 ):
     if status not in ["booked", "completed", "cancelled"]:
-        raise HTTPException(status_code=400, detail="Status must be: booked, completed, or cancelled")
+        raise HTTPException(status_code=400, detail="Invalid status")
 
     appointment = db.query(Appointment).filter(Appointment.id == appointment_id).first()
     if not appointment:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
-    # Authorization check
-    if current_user.role == "patient":
-        patient = db.query(Patient).filter(Patient.user_id == current_user.id).first()
-        if appointment.patient_id != patient.id:
-            raise HTTPException(status_code=403, detail="Not your appointment")
-
-    elif current_user.role == "doctor":
-        doctor = db.query(Doctor).filter(Doctor.user_id == current_user.id).first()
-        if appointment.doctor_id != doctor.id:
-            raise HTTPException(status_code=403, detail="Not your appointment")
-
     appointment.status = status
     db.commit()
-    return {"message": f"Appointment status updated to {status}"}
+    return {"message": f"Status updated to {status}"}

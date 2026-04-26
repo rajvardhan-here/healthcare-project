@@ -7,6 +7,7 @@ import Register from './pages/Register'
 import Doctors from './pages/Doctors'
 import PatientDashboard from './pages/PatientDashboard'
 import DoctorDashboard from './pages/DoctorDashboard'
+import Pricing from './pages/Pricing'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/doctors" element={<Doctors />} />
+        <Route path="/pricing" element={<Pricing />} />
         <Route path="/patient-dashboard" element={
           <ProtectedRoute role="patient"><PatientDashboard /></ProtectedRoute>
         } />

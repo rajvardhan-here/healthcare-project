@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import User, Patient, Doctor
 from utils.auth import hash_password, verify_password, create_access_token
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -12,20 +12,17 @@ class RegisterRequest(BaseModel):
     name: str
     email: str
     password: str
-    role: str  # patient, doctor, admin
+    role: str
 
 @router.post("/register")
 def register(data: RegisterRequest, db: Session = Depends(get_db)):
-    # Email already exists check
     existing = db.query(User).filter(User.email == data.email).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # Role validation
     if data.role not in ["patient", "doctor", "admin"]:
         raise HTTPException(status_code=400, detail="Role must be: patient, doctor, or admin")
 
-    # Password length check
     if len(data.password) < 6:
         raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
 
@@ -35,14 +32,25 @@ def register(data: RegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # Auto create profile based on role
     if data.role == "patient":
-        patient = Patient(user_id=user.id)
+        patient = Patient(
+            user_id=user.id,
+            age=None,
+            gender=None,
+            blood_group=None,
+            phone=None
+        )
         db.add(patient)
         db.commit()
 
     elif data.role == "doctor":
-        doctor = Doctor(user_id=user.id)
+        doctor = Doctor(
+            user_id=user.id,
+            specialization="General",
+            experience=0,
+            consultation_fee=500,
+            available_days="Mon-Fri"
+        )
         db.add(doctor)
         db.commit()
 
