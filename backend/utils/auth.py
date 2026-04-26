@@ -50,7 +50,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
 
     # Database se user dhundo
-    from database.models import User
+    from database.models import h
+    
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
         raise HTTPException(status_code=401, detail="User not found")
