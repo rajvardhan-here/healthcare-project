@@ -1,15 +1,13 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import auth
+from routers import auth, appointments, doctors, patients, medical_records
 from database.db import engine
 from database import models
 
-# Create database tables
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Healthcare API")
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,8 +16,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
 app.include_router(auth.router)
+app.include_router(appointments.router)
+app.include_router(doctors.router)
+app.include_router(patients.router)
+app.include_router(medical_records.router)
 
 @app.get("/")
 def root():
