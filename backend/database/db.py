@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres123@localhost:5432/healthcare_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:rajvardhan1@db.ijgoxxhbsfblzfuddddp.supabase.co:5432/postgres")
 
 # Fix for SQLAlchemy + Supabase pooler
 if DATABASE_URL.startswith("postgres://"):

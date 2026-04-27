@@ -9,7 +9,7 @@ This project handles authentication, user management (patients & doctors), and p
 
 * 🔐 User Authentication (JWT-based login/register)
 * 👨‍⚕️ Doctor & Patient Role Management
-* 📅 Appointment System (structure ready)
+* 📅 Appointment System (structure ready
 * 🗂️ Modular Backend Architecture
 * ⚡ FastAPI-based high-performance APIs
 * 🛢️ PostgreSQL Database Integration
