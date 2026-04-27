@@ -45,7 +45,7 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-white/80 font-medium mb-2 text-sm">Full Name</label>
-              <input type="text" placeholder="Rajvardhan Singh"
+              <input type="text" placeholder="Name"
                 className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-teal-400 focus:bg-white/15 transition-all duration-300"
                 value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
