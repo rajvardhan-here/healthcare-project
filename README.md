@@ -36,13 +36,14 @@ Built with React.js + FastAPI + PostgreSQL — fully deployed and live!
 
 ---
 
-## 📁 Project Structure
+## 📂 Project Structure
 
+```bash
 healthcare-project/
 │
 ├── backend/
 │   ├── database/        # DB connection & models
-│   ├── routers/         # API routes (auth, appointments, doctors, patients, medical_records)
+│   ├── routers/         # API routes (auth, appointments, doctors, patients)
 │   ├── schemas/         # Pydantic schemas
 │   ├── utils/           # Utility functions (auth, JWT, hashing)
 │   ├── main.py          # Entry point
@@ -52,16 +53,16 @@ healthcare-project/
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/           # Landing, Login, Register, Doctors, Dashboard
-│   │   ├── components/      # Navbar, ProtectedRoute
-│   │   └── services/        # API calls (api.js)
-│   ├── vercel.json          # Vercel routing config
+│   │   ├── pages/       # Landing, Login, Register, Doctors, Dashboard
+│   │   ├── components/  # Navbar, ProtectedRoute
+│   │   └── services/    # API calls (api.js)
+│   │
+│   ├── vercel.json      # Vercel routing config
 │   └── vite.config.js
 │
 └── README.md
-
----
-
+```
+--- 
 ## ⚙️ Installation & Setup
 
 ### 1️⃣ Clone Repository
